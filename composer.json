@@ -4,5 +4,8 @@
         "psr-4": {
             "Itsmethemojo\\": "src/"
         }
+    },
+    "require-dev": {
+        "squizlabs/php_codesniffer": "2.*"
     }
 }

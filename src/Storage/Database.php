@@ -116,7 +116,6 @@ class Database
     {
         $this->mysqlLazyLoadConfig();
         if ($this->database === null) {
-
             $port = 3306;
             if (array_key_exists('port', $this->configuration['mysql'])) {
                 $port = $this->configuration['mysql']['port'];
@@ -147,7 +146,6 @@ class Database
     {
         $this->redisLazyLoadConfig();
         if ($this->database === null) {
-
             if (!array_key_exists('port', $this->configuration['redis'])) {
                 $this->configuration['redis']['port'] = 6379;
             }

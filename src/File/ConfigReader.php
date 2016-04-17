@@ -14,7 +14,7 @@ class ConfigReader
         $filePath = ConfigReader::getRootPath().'/config/'.$key.'.ini';
 
         if (!file_exists($filePath)) {
-            throw new Exception('missing mysql.ini');
+            throw new Exception('missing '.$key.'.ini');
         }
 
         $data = parse_ini_file($filePath);
