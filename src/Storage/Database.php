@@ -20,12 +20,25 @@ class Database
     /** @var mixed**/
     private $configuration = array();
 
+    private $databaseConfigKey = null;
+
     //TODO make configs overwrite-able
-    public function __construct()
+    public function __construct($databaseConfigKey = "mysql", $storageConfigKey = "redis")
     {
-        //TODO rename that, it is not lazy
-        $this->redisLazyLoadConfig();
-        $this->redisLazyConnect();
+        $this->databaseConfigKey = $databaseConfigKey;
+        if (!array_key_exists('storage', $this->configuration)) {
+            $this->configuration['storage'] = ConfigReader::get($storageConfigKey, array('host', 'prefix'));
+        }
+        
+        if ($this->keyValueStore === null) {
+            if (!array_key_exists('port', $this->configuration['storage'])) {
+                $this->configuration['storage']['port'] = 6379;
+            }
+
+            $this->keyValueStore = new KeyValueStore();
+            $this->keyValueStore->setConfig($this->configuration['storage']);
+            $this->keyValueStore->connect();
+        }
     }
 
     public function read($tags, $query, QueryParameters $parameters = null, $notSaveIfEmptyResult = false, $ttl = 0)
@@ -82,7 +95,7 @@ class Database
         $stmt = $this->database->prepare(
             str_replace(
                 '#',
-                $this->configuration['mysql']['tablePrefix'],
+                $this->configuration['database']['tablePrefix'],
                 $query
             )
         );
@@ -101,13 +114,13 @@ class Database
 
     private function mysqlLazyLoadConfig()
     {
-        if (!array_key_exists('mysql', $this->configuration)) {
-            $this->configuration['mysql'] = ConfigReader::get(
-                'mysql',
+        if (!array_key_exists('database', $this->configuration)) {
+            $this->configuration['database'] = ConfigReader::get(
+                $this->databaseConfigKey,
                 array('username', 'password', 'host', 'databaseName')
             );
-            if (!array_key_exists('tablePrefix', $this->configuration['mysql'])) {
-                $this->configuration['mysql']['tablePrefix'] = '';
+            if (!array_key_exists('tablePrefix', $this->configuration['database'])) {
+                $this->configuration['database']['tablePrefix'] = '';
             }
         }
     }
@@ -117,44 +130,23 @@ class Database
         $this->mysqlLazyLoadConfig();
         if ($this->database === null) {
             $port = 3306;
-            if (array_key_exists('port', $this->configuration['mysql'])) {
-                $port = $this->configuration['mysql']['port'];
+            if (array_key_exists('port', $this->configuration['database'])) {
+                $port = $this->configuration['database']['port'];
             }
 
             $this->database = new PDO(
-                'mysql:host=' . $this->configuration['mysql']['host'] .
+                'mysql:host=' . $this->configuration['database']['host'] .
                 ';port=' . $port .
-                ';dbname=' . $this->configuration['mysql']['databaseName'] .
+                ';dbname=' . $this->configuration['database']['databaseName'] .
                 ';charset=utf8',
-                $this->configuration['mysql']['username'],
-                $this->configuration['mysql']['password']
+                $this->configuration['database']['username'],
+                $this->configuration['database']['password']
             );
         }
     }
 
     //========================================
     //redis functions
-
-    private function redisLazyLoadConfig()
-    {
-        if (!array_key_exists('redis', $this->configuration)) {
-            $this->configuration['redis'] = ConfigReader::get('redis', array('host', 'prefix'));
-        }
-    }
-
-    private function redisLazyConnect()
-    {
-        $this->redisLazyLoadConfig();
-        if ($this->database === null) {
-            if (!array_key_exists('port', $this->configuration['redis'])) {
-                $this->configuration['redis']['port'] = 6379;
-            }
-
-            $this->keyValueStore = new KeyValueStore();
-            $this->keyValueStore->setConfig($this->configuration['redis']);
-            $this->keyValueStore->connect();
-        }
-    }
 
     private function getTagsPrefix($tags)
     {
