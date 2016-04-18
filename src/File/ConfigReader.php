@@ -4,7 +4,6 @@ namespace Itsmethemojo\File;
 
 use Exception;
 
-//for performance issues its to check if reading config from redis is faster
 class ConfigReader
 {
 
@@ -27,17 +26,13 @@ class ConfigReader
         return $data;
     }
 
-    //TODO extract this in other Class
     public static function getRootPath()
     {
         $currentFileDir = __DIR__ . '/';
-        //this is messy
         if (strpos($currentFileDir, '/vendor/')) {
             return preg_split('/\/vendor\//', $currentFileDir, 2)[0];
-        } elseif (strpos($currentFileDir, '/src/')) {
-            return preg_split('/\/src\//', $currentFileDir, 2)[0];
         } else {
-            throw new Exception('unusual file strucure, expecting this classfile somewhere in vendor or src folder');
+            throw new Exception('unusual file strucure, expecting this classfile somewhere in vendor folder');
         }
     }
 }
