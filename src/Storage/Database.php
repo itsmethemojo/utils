@@ -20,7 +20,6 @@ class Database
     /** @var mixed**/
     private $configuration = array();
 
-    //TODO make configs overwrite-able
     public function __construct($databaseConfigKey = "mysql", $storageConfigKey = "redis")
     {
         $this->configuration['database'] = ConfigReader::get(
@@ -36,6 +35,12 @@ class Database
         
         $this->keyValueStore = new KeyValueStore($storageConfigKey);
         
+    }
+
+    public function connect($pdo = null, $redis = null)
+    {
+        $this->mysqlLazyConnect($pdo);
+        $this->redisLazyConnect($redis);
     }
 
     public function read($tags, $query, QueryParameters $parameters = null, $notSaveIfEmptyResult = false, $ttl = 0)
@@ -112,9 +117,13 @@ class Database
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    private function mysqlLazyConnect()
+    private function mysqlLazyConnect($pdo = null)
     {
         if ($this->database === null) {
+            if ($pdo) {
+                $this->database = $pdo;
+                return;
+            }
             $this->database = new PDO(
                 'mysql:host=' . $this->configuration['database']['host'] .
                 ';port=' . $this->configuration['database']['port'] .
@@ -136,7 +145,7 @@ class Database
         $tagCounts = $this->keyValueStore->mGet($this->transformTags($tags));
         for ($index = 0; $index < count($tags); $index++) {
             if ($tagCounts[$index] === false) {
-                $this->keyValueStore->set($tags[$index], 1);
+                $this->keyValueStore->set('tag-' . $tags[$index], 1);
                 $tagCounts[$index] = 1;
             }
             $tagsPrefix .= $tags[$index] . $tagCounts[$index] . '-';
@@ -162,10 +171,10 @@ class Database
         }
     }
 
-    private function redisLazyConnect()
+    private function redisLazyConnect($redis = null)
     {
-        if ($this->keyValueStore === null) {
-            $this->keyValueStore->connect();
+        if (!$this->keyValueStore->isConnected()) {
+            $this->keyValueStore->connect($redis);
         }
     }
 }

@@ -41,12 +41,12 @@ class KeyValueStore
         if (!is_numeric($ttl) || $ttl <= 0) {
             $ttl = KeyValueStore::$ttl;
         }
-        return $this->redis->setex($this->config['prefix'].$key, $ttl, $value);
+        return $this->redis->setex($this->transformKeys($key), $ttl, $value);
     }
 
     public function get($key)
     {
-        $value = $this->redis->get($this->config['prefix'].$key);
+        $value = $this->redis->get($this->transformKeys($key));
         if (substr($value, 0, 5) === "json>") {
             return json_decode(substr($value, 5), true);
         }
@@ -55,11 +55,28 @@ class KeyValueStore
 
     public function mGet($keys)
     {
-        return $this->redis->mGet($keys);
+        return $this->redis->mGet($this->transformKeys($keys));
     }
 
     public function incr($key)
     {
-        return $this->redis->incr($key);
+        return $this->redis->incr($this->transformKeys($key));
+    }
+
+    public function isConnected()
+    {
+        return $this->redis !== null;
+    }
+
+    private function transformKeys($keys)
+    {
+        if (!is_array($keys)) {
+            return $this->config['prefix'].$keys;
+        }
+        $transformedKeys = [];
+        foreach ($keys as $key) {
+            $transformedKeys[] = $this->config['prefix'].$key;
+        }
+        return $transformedKeys;
     }
 }
