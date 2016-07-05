@@ -2,7 +2,7 @@
 
 namespace Itsmethemojo\File;
 
-use Exception;
+use Itsmethemojo\Exception\MissingConfigurationException;
 
 class ConfigReader
 {
@@ -13,13 +13,13 @@ class ConfigReader
         $filePath = ConfigReader::getRootPath().'/config/'.$key.'.ini';
 
         if (!file_exists($filePath)) {
-            throw new Exception('missing '.$key.'.ini');
+            throw new MissingConfigurationException($key);
         }
 
         $data = parse_ini_file($filePath);
         foreach ($mustHaveKeys as $mustHaveKey) {
             if (!array_key_exists($mustHaveKey, $data)) {
-                throw new Exception('key '.$mustHaveKey.' is missing in '.$key.'.ini');
+                throw new MissingConfigurationException($key, $mustHaveKey);
             }
         }
 
@@ -31,8 +31,10 @@ class ConfigReader
         $currentFileDir = __DIR__ . '/';
         if (strpos($currentFileDir, '/vendor/')) {
             return preg_split('/\/vendor\//', $currentFileDir, 2)[0];
+        } elseif (strpos($currentFileDir, '/src/')) {
+            return preg_split('/\/src\//', $currentFileDir, 2)[0];
         } else {
-            throw new Exception('unusual file strucure, expecting this classfile somewhere in vendor folder');
+            throw new Exception('unusual file strucure, expecting this classfile somewhere in vendor or src folder');
         }
     }
 }

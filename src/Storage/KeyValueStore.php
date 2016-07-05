@@ -3,7 +3,7 @@
 namespace Itsmethemojo\Storage;
 
 use Redis;
-use Exception;
+use Itsmethemojo\File\ConfigReader;
 
 class KeyValueStore
 {
@@ -11,49 +11,46 @@ class KeyValueStore
     private $redis = null;
     private $config = null;
 
-    public function setConfig($config)
+    public static $ttl = 86400; //60*60*24
+
+    public function __construct($configKey)
     {
-        if (!array_key_exists('host', $config)
-            || !array_key_exists('port', $config)
-            || !array_key_exists('prefix', $config)
-        ) {
-            throw new Exception("incomplete redis config");
+        $this->config = ConfigReader::get($configKey, array('host', 'prefix'));
+        if (!isset($this->config['port'])) {
+            $this->config['port'] = 6379;
         }
-        $this->config = $config;
         return $this;
     }
 
-    public function connect()
+    public function connect($redisAlreadyConnected = null)
     {
-        $this->redis = new Redis();
-        $this->redis->connect($this->config['host'], $this->config['port']);
+        if (!$redisAlreadyConnected) {
+            $this->redis = new Redis();
+            $this->redis->connect($this->config['host'], $this->config['port']);
+        } else {
+            $this->redis = $redisAlreadyConnected;
+        }
         return $this;
-    }
-
-    public function setComplex($key, $value, $ttl = 0)
-    {
-        //because redis cant cache objects we have to encode shit
-        $toSave = json_encode($this->config['prefix'].$key);
-        return $this->set($toSave, $value, $ttl);
-    }
-
-    public function getComplex($key)
-    {
-        return json_decode($this->get($key), true);
     }
 
     public function set($key, $value, $ttl = 0)
     {
-        if ($ttl==0) {
-            //TODO everything should expire? or?
-            $ttl = 24*60*60;
+        if (is_array($value) || is_object($value)) {
+            $value = "json>" . json_encode($value);
+        }
+        if (!is_numeric($ttl) || $ttl <= 0) {
+            $ttl = KeyValueStore::$ttl;
         }
         return $this->redis->setex($this->config['prefix'].$key, $ttl, $value);
     }
 
     public function get($key)
     {
-        return $this->redis->get($this->config['prefix'].$key);
+        $value = $this->redis->get($this->config['prefix'].$key);
+        if (substr($value, 0, 5) === "json>") {
+            return json_decode(substr($value, 5), true);
+        }
+        return $value;
     }
 
     public function mGet($keys)

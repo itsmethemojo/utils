@@ -20,25 +20,22 @@ class Database
     /** @var mixed**/
     private $configuration = array();
 
-    private $databaseConfigKey = null;
-
     //TODO make configs overwrite-able
     public function __construct($databaseConfigKey = "mysql", $storageConfigKey = "redis")
     {
-        $this->databaseConfigKey = $databaseConfigKey;
-        if (!array_key_exists('storage', $this->configuration)) {
-            $this->configuration['storage'] = ConfigReader::get($storageConfigKey, array('host', 'prefix'));
+        $this->configuration['database'] = ConfigReader::get(
+            $databaseConfigKey,
+            array('username', 'password', 'host', 'databaseName')
+        );
+        if (!array_key_exists('tablePrefix', $this->configuration['database'])) {
+            $this->configuration['database']['tablePrefix'] = '';
+        }
+        if (!array_key_exists('port', $this->configuration['database'])) {
+            $this->configuration['database']['port'] = 3306;
         }
         
-        if ($this->keyValueStore === null) {
-            if (!array_key_exists('port', $this->configuration['storage'])) {
-                $this->configuration['storage']['port'] = 6379;
-            }
-
-            $this->keyValueStore = new KeyValueStore();
-            $this->keyValueStore->setConfig($this->configuration['storage']);
-            $this->keyValueStore->connect();
-        }
+        $this->keyValueStore = new KeyValueStore($storageConfigKey);
+        
     }
 
     public function read($tags, $query, QueryParameters $parameters = null, $notSaveIfEmptyResult = false, $ttl = 0)
@@ -54,12 +51,13 @@ class Database
         }
 
         $key .= md5($toHash);
-        $cached = $this->keyValueStore->getComplex($key);
+        $this->redisLazyConnect();
+        $cached = $this->keyValueStore->get($key);
 
         if (!$cached) {
             $cached = $this->mysqlFetch($query, $parameters);
             if (!$notSaveIfEmptyResult) {
-                $this->keyValueStore->setComplex($key, $cached, $ttl);
+                $this->keyValueStore->set($key, $cached, $ttl);
             }
         }
         return $cached;
@@ -78,12 +76,14 @@ class Database
 
     public function putInStore($key, $value, $ttl)
     {
-        return $this->keyValueStore->setComplex($key, $value, $ttl);
+        $this->redisLazyConnect();
+        return $this->keyValueStore->set($key, $value, $ttl);
     }
 
     public function getFromStore($key)
     {
-        return $this->keyValueStore->getComplex($key);
+        $this->redisLazyConnect();
+        return $this->keyValueStore->get($key);
     }
     //========================================
     //mysql functions
@@ -112,31 +112,12 @@ class Database
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    private function mysqlLazyLoadConfig()
-    {
-        if (!array_key_exists('database', $this->configuration)) {
-            $this->configuration['database'] = ConfigReader::get(
-                $this->databaseConfigKey,
-                array('username', 'password', 'host', 'databaseName')
-            );
-            if (!array_key_exists('tablePrefix', $this->configuration['database'])) {
-                $this->configuration['database']['tablePrefix'] = '';
-            }
-        }
-    }
-
     private function mysqlLazyConnect()
     {
-        $this->mysqlLazyLoadConfig();
         if ($this->database === null) {
-            $port = 3306;
-            if (array_key_exists('port', $this->configuration['database'])) {
-                $port = $this->configuration['database']['port'];
-            }
-
             $this->database = new PDO(
                 'mysql:host=' . $this->configuration['database']['host'] .
-                ';port=' . $port .
+                ';port=' . $this->configuration['database']['port'] .
                 ';dbname=' . $this->configuration['database']['databaseName'] .
                 ';charset=utf8',
                 $this->configuration['database']['username'],
@@ -150,6 +131,7 @@ class Database
 
     private function getTagsPrefix($tags)
     {
+        $this->redisLazyConnect();
         $tagsPrefix = '';
         $tagCounts = $this->keyValueStore->mGet($this->transformTags($tags));
         for ($index = 0; $index < count($tags); $index++) {
@@ -174,8 +156,16 @@ class Database
 
     private function incrementTags($tags)
     {
+        $this->redisLazyConnect();
         foreach ($this->transformTags($tags) as $tag) {
             $this->keyValueStore->incr($tag);
+        }
+    }
+
+    private function redisLazyConnect()
+    {
+        if ($this->keyValueStore === null) {
+            $this->keyValueStore->connect();
         }
     }
 }
