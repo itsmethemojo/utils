@@ -4,5 +4,4 @@ node {
    sh "git checkout jenkinsfile"
    sh "php --version | head -n1; composer --version"
    sh "composer install"
-   sh "vendor/bin/phpunit"
 }
