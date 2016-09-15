@@ -1,0 +1,5 @@
+#!groovy
+# Jenkinsfile
+node {
+   sh "php --version | head -n1; composer --version"
+}
