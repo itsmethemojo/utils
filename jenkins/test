@@ -1,4 +1,6 @@
 #!groovy
+
+stage name: 'Test', concurrency: 1
 node {
    checkout scm
    sh "git checkout jenkinsfile"
