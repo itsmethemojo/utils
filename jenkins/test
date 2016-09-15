@@ -2,9 +2,11 @@
 
 stage name: 'Test', concurrency: 1
 node {
-   checkout scm
-   sh "git checkout jenkinsfile"
-   sh "cat jenkins/test"
-   sh "php --version | head -n1; composer --version"
-   sh "composer install"
+    stage 'Checkout'
+    checkout scm
+    sh "git checkout jenkinsfile"
+    stage 'Print Software Versions'
+    sh "php --version | head -n1; composer --version"
+    stage 'Install Dependencies'
+    sh "composer install"
 }
