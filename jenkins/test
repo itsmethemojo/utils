@@ -1,5 +1,6 @@
 #!groovy
 node {
+   checkout scm
    sh "php --version | head -n1; composer --version"
    sh "composer install"
    sh "vendor/bin/phpunit"
