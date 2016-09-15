@@ -2,6 +2,7 @@
 node {
    checkout scm
    sh "git checkout jenkinsfile"
+   sh "cat jenkins/test"
    sh "php --version | head -n1; composer --version"
    sh "composer install"
 }
