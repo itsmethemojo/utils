@@ -34,7 +34,6 @@ class Database
         }
         
         $this->keyValueStore = new KeyValueStore($storageConfigKey);
-        
     }
 
     public function connect($pdo = null, $redis = null)

@@ -2,7 +2,7 @@
 
 namespace Itsmethemojo\File;
 
-use Itsmethemojo\Exception\MissingConfigurationException;
+use Exception;
 
 class ConfigReader
 {
@@ -13,13 +13,13 @@ class ConfigReader
         $filePath = ConfigReader::getRootPath().'/config/'.$key.'.ini';
 
         if (!file_exists($filePath)) {
-            throw new MissingConfigurationException($key);
+            throw new Exception($key);
         }
 
         $data = parse_ini_file($filePath);
         foreach ($mustHaveKeys as $mustHaveKey) {
             if (!array_key_exists($mustHaveKey, $data)) {
-                throw new MissingConfigurationException($key, $mustHaveKey);
+                throw new Exception($key, $mustHaveKey);
             }
         }
 
