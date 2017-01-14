@@ -23,4 +23,5 @@ sudo ln -s /vagrant/vagrant/default.conf /etc/nginx/sites-available/default
 sudo rm -rf /usr/share/nginx/html
 sudo ln -s /vagrant/public /usr/share/nginx/html
 
+sudo service php7.0-fpm restart
 sudo service nginx restart
